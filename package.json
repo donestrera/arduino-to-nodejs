@@ -1,0 +1,26 @@
+{
+    "name": "arduino-website-integration",
+    "version": "1.0.0",
+    "description": "Real-time communication between an Arduino and a web interface using Node.js and WebSockets",
+    "main": "app.js",
+    "scripts": {
+      "start": "node app.js"
+    },
+    "keywords": [
+      "arduino",
+      "socket.io",
+      "serialport",
+      "real-time",
+      "web-integration"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+      "express": "^4.18.2",
+      "socket.io": "^4.7.2",
+      "serialport": "^10.5.0"
+    },
+    "engines": {
+      "node": ">=14.0.0"
+    }
+  }
