@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <title>Sensor Status Dashboard</title>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+        color: #333;
+      }
+      header {
+        background-color: #0078d7;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+      }
+      .status-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 2rem auto;
+        max-width: 600px;
+      }
+      .status-box {
+        background-color: #fff;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        width: 100%;
+        text-align: center;
+      }
+      .status-box h2 {
+        margin-bottom: 0.5rem;
+      }
+      .status-box p {
+        font-size: 1.2rem;
+        margin: 0.5rem 0;
+      }
+      .status-indicator {
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h1>Sensor Status Dashboard</h1>
+    </header>
+    <div class="status-container">
+      <!-- Humidity and Temperature Section -->
+      <div class="status-box">
+        <h2>Humidity and Temperature</h2>
+        <p>Humidity: <span id="humidity" class="status-indicator">--</span>%</p>
+        <p>
+          Temperature:
+          <span id="temperature" class="status-indicator">--</span>°C
+        </p>
+      </div>
+      <!-- Motion Detection Section -->
+      <div class="status-box">
+        <h2>Motion Detection</h2>
+        <p>Status: <span id="motion" class="status-indicator">No Data</span></p>
+      </div>
+      <!-- Smoke Detection Section -->
+      <div class="status-box">
+        <h2>Smoke Detection</h2>
+        <p>Status: <span id="smoke" class="status-indicator">No Data</span></p>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+
+      // Update humidity and temperature
+      socket.on("arduinoData", (data) => {
+        const parsedData = JSON.parse(data);
+        document.getElementById("humidity").textContent =
+          parsedData.humidity || "--";
+        document.getElementById("temperature").textContent =
+          parsedData.temperature || "--";
+        document.getElementById("motion").textContent =
+          parsedData.motionDetected ? "Motion Detected" : "No Motion";
+        document.getElementById("smoke").textContent = parsedData.smokeDetected
+          ? "Smoke Detected"
+          : "No Smoke";
+      });
+    </script>
+  </body>
+</html>
