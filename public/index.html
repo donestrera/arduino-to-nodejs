@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <title>Sensor Status Dashboard</title>
 
     <style>
@@ -15,7 +15,7 @@
         color: #333;
       }
       header {
-        background-color: #0078d7;
+        background-image: linear-gradient(to right, #0078d7, #2ecc71);
         color: white;
         padding: 1rem;
         text-align: center;
@@ -46,15 +46,25 @@
       .status-indicator {
         font-weight: bold;
       }
+
+      .disconnected {
+        background-color: #ffebee !important;
+      }
+      .error {
+        color: #d32f2f;
+      }
+      .connected {
+        color: #388e3c;
+      }
     </style>
   </head>
 
   <body>
     <header>
       <h1>Sensor Status Dashboard</h1>
+      <p id="connection-status">Connecting...</p>
     </header>
     <div class="status-container">
-      <!-- Humidity and Temperature Section -->
       <div class="status-box">
         <h2>Humidity and Temperature</h2>
         <p>Humidity: <span id="humidity" class="status-indicator">--</span>%</p>
@@ -63,33 +73,50 @@
           <span id="temperature" class="status-indicator">--</span>°C
         </p>
       </div>
-      <!-- Motion Detection Section -->
       <div class="status-box">
         <h2>Motion Detection</h2>
         <p>Status: <span id="motion" class="status-indicator">No Data</span></p>
       </div>
-      <!-- Smoke Detection Section -->
       <div class="status-box">
         <h2>Smoke Detection</h2>
         <p>Status: <span id="smoke" class="status-indicator">No Data</span></p>
       </div>
     </div>
-    <script src="/socket.io/socket.io.js"></script>
+
     <script>
       const socket = io();
+      const connectionStatus = document.getElementById("connection-status");
+      const statusBoxes = document.querySelectorAll(".status-box");
 
-      // Update humidity and temperature
+      // Connection handling
+      socket.on("connect", () => {
+        connectionStatus.textContent = "Connected";
+        connectionStatus.className = "connected";
+        statusBoxes.forEach((box) => box.classList.remove("disconnected"));
+      });
+
+      socket.on("disconnect", () => {
+        connectionStatus.textContent = "Disconnected";
+        connectionStatus.className = "error";
+        statusBoxes.forEach((box) => box.classList.add("disconnected"));
+      });
+
+      // Update sensor data
       socket.on("arduinoData", (data) => {
-        const parsedData = JSON.parse(data);
-        document.getElementById("humidity").textContent =
-          parsedData.humidity || "--";
-        document.getElementById("temperature").textContent =
-          parsedData.temperature || "--";
-        document.getElementById("motion").textContent =
-          parsedData.motionDetected ? "Motion Detected" : "No Motion";
-        document.getElementById("smoke").textContent = parsedData.smokeDetected
-          ? "Smoke Detected"
-          : "No Smoke";
+        try {
+          document.getElementById("humidity").textContent =
+            data.humidity !== null ? data.humidity.toFixed(1) : "--";
+          document.getElementById("temperature").textContent =
+            data.temperature !== null ? data.temperature.toFixed(1) : "--";
+          document.getElementById("motion").textContent = data.motionDetected
+            ? "Motion Detected"
+            : "No Motion";
+          document.getElementById("smoke").textContent = data.smokeDetected
+            ? "Smoke Detected"
+            : "No Smoke";
+        } catch (error) {
+          console.error("Error updating sensor data:", error);
+        }
       });
     </script>
   </body>

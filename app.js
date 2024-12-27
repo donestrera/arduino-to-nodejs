@@ -1,8 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const SerialPort = require('serialport');
-const { ReadlineParser } = SerialPort.parsers;
+const { SerialPort } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
 const path = require('path');
 
 // Express setup
@@ -10,40 +10,32 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Static files (e.g., index.html)
+// Static files
 const staticDir = path.join(__dirname, 'public');
 app.use(express.static(staticDir));
 
 // Arduino Serial Port Configuration
-const portPath = '/dev/tty.wchusbserialfa1410'; // Replace with your Arduino port
+const portPath = '/dev/cu.usbserial-110'; // Update this to match your Arduino port
 const baudRate = 9600;
 
-const serialPort = new SerialPort(portPath, { baudRate }, (err) => {
-    if (err) {
-        console.error(`Failed to open port: ${err.message}`);
-        return;
-    }
-    console.log(`Connected to Arduino on ${portPath} at ${baudRate} baud.`);
+// Create Serial Port instance
+const serialPort = new SerialPort({
+    path: portPath,
+    baudRate: baudRate
 });
 
-const parser = new ReadlineParser({ delimiter: '\r\n' });
+// Create parser
+const parser = new ReadlineParser();
 serialPort.pipe(parser);
 
 // WebSocket Communication
 io.on('connection', (socket) => {
     console.log('Client connected');
 
-    // Receive commands from the client and send them to Arduino
     socket.on('sendToArduino', (command) => {
         console.log(`Sending to Arduino: ${command}`);
         if (serialPort.isOpen) {
-            serialPort.write(`${command}\n`, (err) => {
-                if (err) {
-                    console.error(`Error writing to Arduino: ${err.message}`);
-                }
-            });
-        } else {
-            console.error('Serial port is not open.');
+            serialPort.write(`${command}\n`);
         }
     });
 
@@ -52,13 +44,19 @@ io.on('connection', (socket) => {
     });
 });
 
-// Handle data from Arduino and broadcast it to clients
+// Handle data from Arduino with proper error handling
 parser.on('data', (data) => {
-    console.log(`Received from Arduino: ${data}`);
-    io.emit('arduinoData', data); // Broadcast to all connected clients
+    try {
+        const parsedData = JSON.parse(data.trim());
+        console.log('Received from Arduino:', parsedData);
+        io.emit('arduinoData', parsedData);
+    } catch (error) {
+        console.error('Error parsing Arduino data:', error.message);
+        console.log('Raw data received:', data);
+    }
 });
 
-// Error handling
+// Error handling for serial port
 serialPort.on('error', (err) => {
     console.error(`Serial port error: ${err.message}`);
 });
