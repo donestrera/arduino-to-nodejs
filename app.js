@@ -4,6 +4,8 @@ const { Server } = require('socket.io');
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const path = require('path');
+const mongoose = require('mongoose');
+const User = require('./models/User');
 
 // Express setup
 const app = express();
@@ -15,7 +17,7 @@ const staticDir = path.join(__dirname, 'public');
 app.use(express.static(staticDir));
 
 // Arduino Serial Port Configuration
-const portPath = '/dev/cu.usbserial-110'; // Update this to match your Arduino port
+const portPath = '/dev/cu.usbserial-110';
 const baudRate = 9600;
 
 // Create Serial Port instance
@@ -61,8 +63,25 @@ serialPort.on('error', (err) => {
     console.error(`Serial port error: ${err.message}`);
 });
 
-// Start the server
+// MongoDB Connection
+const connectDB = async () => {
+    try {
+        const conn = await mongoose.connect('mongodb://localhost:27017/arduinoDB', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log(`MongoDB Connected: ${conn.connection.host}`);
+    } catch (error) {
+        console.error(`Error connecting to MongoDB: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+// Connect to MongoDB before starting the server
 const PORT = 3000;
-server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
+connectDB().then(() => {
+    // Move server.listen here to ensure DB is connected first
+    server.listen(PORT, () => {
+        console.log(`Server running at http://localhost:${PORT}`);
+    });
+}).catch(err => console.log(err));
