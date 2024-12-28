@@ -94,3 +94,5 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ msg: 'Server error.' });
     }
 });
+
+module.exports = mongoose.model('User', userSchema);
