@@ -20,6 +20,17 @@
         padding: 1rem;
         text-align: center;
       }
+      nav {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+      }
+      nav a {
+        margin: 0 1rem;
+        text-decoration: none;
+        color: #0078d7;
+        font-weight: bold;
+      }
       .status-container {
         display: flex;
         flex-direction: column;
@@ -64,6 +75,10 @@
       <h1>Sensor Status Dashboard</h1>
       <p id="connection-status">Connecting...</p>
     </header>
+    <nav>
+      <a href="/login.html">Login</a>
+      <a href="/register.html">Register</a>
+    </nav>
     <div class="status-container">
       <div class="status-box">
         <h2>Humidity and Temperature</h2>
@@ -84,6 +99,12 @@
     </div>
 
     <script>
+      // Check if the user is authenticated
+      const token = localStorage.getItem("token");
+      if (!token) {
+        window.location.href = "/login.html";
+      }
+
       const socket = io();
       const connectionStatus = document.getElementById("connection-status");
       const statusBoxes = document.querySelectorAll(".status-box");
