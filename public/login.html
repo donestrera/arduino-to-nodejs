@@ -4,113 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
-    <style>
-      .form-container,
-      .auth-container {
-        max-width: 400px;
-        margin: 50px auto;
-        padding: 20px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-      }
-      .form-group {
-        margin-bottom: 15px;
-      }
-      label {
-        display: block;
-        margin-bottom: 5px;
-      }
-      input {
-        width: 100%;
-        padding: 8px;
-        margin-top: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      button {
-        width: 100%;
-        padding: 10px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        margin-top: 10px;
-      }
-      button:hover {
-        background-color: #0056b3;
-      }
-      #loginMessage {
-        margin-top: 10px;
-        padding: 10px;
-        border-radius: 5px;
-      }
-      .error {
-        background-color: #ffebee;
-        color: #d32f2f;
-      }
-      p {
-        text-align: center;
-        margin-top: 15px;
-      }
-      a {
-        color: #007bff;
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-    </style>
+    <link rel="stylesheet" href="/public/style.css" />
   </head>
   <body>
     <div class="auth-container">
       <h1>Login</h1>
       <form id="loginForm">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required />
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" required />
-        </div>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required />
+
         <button type="submit">Login</button>
       </form>
-      <div id="loginMessage"></div>
       <p>Don't have an account? <a href="register.html">Sign up</a></p>
     </div>
-
-    <script>
-      document
-        .getElementById("loginForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const email = document.getElementById("email").value;
-          const password = document.getElementById("password").value;
-
-          try {
-            const response = await fetch("/api/auth/login", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ email, password }),
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-              localStorage.setItem("token", data.token);
-              window.location.href = "/index.html";
-            } else {
-              document.getElementById("loginMessage").textContent = data.msg;
-              document.getElementById("loginMessage").className = "error";
-            }
-          } catch (error) {
-            document.getElementById("loginMessage").textContent =
-              "An error occurred. Please try again.";
-            document.getElementById("loginMessage").className = "error";
-          }
-        });
-    </script>
+    <script src="login.js"></script>
   </body>
 </html>
