@@ -1,0 +1,41 @@
+{
+  "name": "arduino-website-integration",
+  "version": "1.0.0",
+  "description": "Real-time communication between an Arduino and a web interface using Node.js and WebSockets",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "clean": "rm -rf node_modules package-lock.json",
+    "reinstall": "npm run clean && npm install"
+  },
+  "keywords": [
+    "arduino",
+    "socket.io",
+    "serialport",
+    "real-time",
+    "web-integration"
+  ],
+  "author": "Don Leonard Estrera",
+  "license": "MIT",
+  "dependencies": {
+    "@serialport/parser-readline": "^12.0.0",
+    "axios": "^1.6.7",
+    "body-parser": "^1.20.2",
+    "express": "^4.18.2",
+    "express-session": "^1.18.0",
+    "mongoose": "^6.12.6",
+    "serialport": "^12.0.0",
+    "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3",
+    "jest": "^29.7.0",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
