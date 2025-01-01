@@ -61,10 +61,7 @@ app.post('/api/login', async (req, res) => {
         if (response.data.success) {
             req.session.authenticated = true;
             req.session.user = username;
-            res.json({ 
-                success: true, 
-                redirect: '/dashboard'
-            });
+            res.json(response.data);
         } else {
             res.json(response.data);
         }
