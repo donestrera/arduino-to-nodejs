@@ -1,7 +1,4 @@
-// static/js/login.js
-
-// This function handles the login form submission
-async function handleLogin(event) {
+async function handleRegister(event) {
     event.preventDefault();
     
     const errorMessage = document.getElementById('errorMessage');
@@ -9,7 +6,7 @@ async function handleLogin(event) {
     const password = document.getElementById('password').value;
     
     try {
-        const response = await fetch('/api/login', {
+        const response = await fetch('/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -18,20 +15,21 @@ async function handleLogin(event) {
         });
         
         const data = await response.json();
-        console.log('Login response:', data); // Debug logging
+        console.log('Registration response:', data); // Debug logging
         
         if (data.success) {
-            window.location.href = data.redirect_url || '/dashboard';
+            alert('Registration successful! Please log in.');
+            window.location.href = '/login';
         } else {
-            errorMessage.textContent = data.message || 'Login failed';
+            errorMessage.textContent = data.message || 'Registration failed';
             errorMessage.style.display = 'block';
         }
     } catch (error) {
-        console.error('Login error:', error);
-        errorMessage.textContent = 'An error occurred during login';
+        console.error('Registration error:', error);
+        errorMessage.textContent = 'An error occurred during registration';
         errorMessage.style.display = 'block';
     }
 }
 
 // Add event listener to the form
-document.getElementById('loginForm').addEventListener('submit', handleLogin);
+document.getElementById('registerForm').addEventListener('submit', handleRegister); 

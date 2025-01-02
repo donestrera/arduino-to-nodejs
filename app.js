@@ -1,154 +1,124 @@
 const express = require('express');
 const session = require('express-session');
-const bodyParser = require('body-parser');
-const http = require('http');
-const axios = require('axios');
-const { Server } = require('socket.io');
-const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
 const path = require('path');
+const axios = require('axios');
+const cors = require('cors');
+const SerialPort = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
 
-// Express setup
 const app = express();
-const server = http.createServer(app);
+const port = process.env.PORT || 3000;
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
 
-// Static files
-const staticDir = path.join(__dirname, 'public');
-app.use(express.static(staticDir));
+// Serial Port configuration
+const serialPort = new SerialPort.SerialPort({
+    path: '/dev/cu.usbserial-110', // Change this to your Arduino port
+    baudRate: 9600
+});
+
+const parser = serialPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
 
 // Middleware
-const sessionMiddleware = session({
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
     secret: 'your-secret-key',
     resave: false,
-    saveUninitialized: false
-});
-
-app.use(sessionMiddleware);
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Socket.IO setup
-const io = new Server(server);
-
-// Wrap session middleware for Socket.IO
-const wrap = middleware => (socket, next) => middleware(socket.request, {}, next);
-io.use(wrap(sessionMiddleware));
-
-// Routes
-app.get('/', (req, res) => {
-    if (req.session.authenticated) {
-        res.redirect('/dashboard');
-    } else {
-        res.sendFile(path.join(__dirname, 'public', 'login.html'));
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000
     }
+}));
+
+// Arduino data handling
+parser.on('data', (data) => {
+    console.log('Arduino Data:', data);
+    io.emit('data', data);
 });
 
-// Serve register.html on /register
+// Authentication routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
 app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'register.html'));
-});
- 
-
-app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        const response = await axios.post('http://127.0.0.1:5001/login', {
-            username,
-            password,
-        });
-
-        if (response.data.success) {
-            req.session.authenticated = true;
-            req.session.user = username;
-            res.json(response.data);
-        } else {
-            res.json(response.data);
-        }
-    } catch (error) {
-        if (error.response) {
-            res.status(error.response.status).json(error.response.data);
-        } else {
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }
-});
-
-app.post('/api/register', async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        const response = await axios.post('http://127.0.0.1:5001/register', {
-            username,
-            password,
-        });
-
-        res.json(response.data);
-    } catch (error) {
-        if (error.response) {
-            res.status(error.response.status).json(error.response.data);
-        } else {
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }
 });
 
 app.get('/dashboard', (req, res) => {
     if (req.session.authenticated) {
         res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
     } else {
-        res.redirect('/');
+        res.redirect('/login');
     }
 });
 
-// Arduino Serial Port Configuration
-const portPath = '/dev/cu.usbserial-110'; // Update this to match your Arduino port
-const baudRate = 9600;
+// Login route
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
 
-// Create Serial Port instance
-const serialPort = new SerialPort({
-    path: portPath,
-    baudRate: baudRate
-});
+    if (!username || !password) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Username and password are required' 
+        });
+    }
 
-const parser = new ReadlineParser();
-serialPort.pipe(parser);
-
-// Socket.IO connection handling
-// WebSocket Communication
-io.on('connection', (socket) => {
-    console.log('Client connected');
-
-    socket.on('sendToArduino', (command) => {
-        console.log(`Sending to Arduino: ${command}`);
-        if (serialPort.isOpen) {
-            serialPort.write(`${command}\n`);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-    });
-});
-// Handle data from Arduino with proper error handling
-parser.on('data', (data) => {
     try {
-        const parsedData = JSON.parse(data.trim());
-        console.log('Received from Arduino:', parsedData);
-        io.emit('arduinoData', parsedData);
-    } catch (error) {
-        console.error('Error parsing Arduino data:', error.message);
-        console.log('Raw data received:', data);
-    }
-});
+        const response = await axios.post('http://127.0.0.1:5001/api/v1/login', {
+            username,
+            password
+        });
 
-// Error handling for serial port
-serialPort.on('error', (err) => {
-    console.error(`Serial port error: ${err.message}`);
+        if (response.data.success) {
+            req.session.authenticated = true;
+            req.session.user = username;
+            
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.status(500).json({
+                        success: false,
+                        message: 'Error saving session'
+                    });
+                }
+                res.json({
+                    success: true,
+                    message: 'Login successful',
+                    redirect_url: '/dashboard'
+                });
+            });
+        } else {
+            res.json(response.data);
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        if (error.response) {
+            res.status(error.response.status).json(error.response.data);
+        } else if (error.code === 'ECONNREFUSED') {
+            res.status(503).json({
+                success: false,
+                message: 'Authentication service unavailable'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error'
+            });
+        }
+    }
 });
 
 // Start server
-const PORT = 3000;
-server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+server.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
 });
