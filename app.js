@@ -47,11 +47,29 @@ serialPort.pipe(parser);
 // WebSocket Communication
 io.on('connection', (socket) => {
     console.log('Client connected');
+    
+    // Send initial connection status
+    socket.emit('connectionStatus', { status: 'connected' });
 
+    // Handle Arduino commands with validation
     socket.on('sendToArduino', (command) => {
+        if (!command || typeof command !== 'string') {
+            console.error('Invalid command format');
+            socket.emit('error', { message: 'Invalid command format' });
+            return;
+        }
+
         console.log(`Sending to Arduino: ${command}`);
         if (serialPort.isOpen) {
-            serialPort.write(`${command}\n`);
+            serialPort.write(`${command}\n`, (err) => {
+                if (err) {
+                    console.error('Error writing to serial port:', err);
+                    socket.emit('error', { message: 'Failed to send command' });
+                }
+            });
+        } else {
+            console.error('Serial port is not open');
+            socket.emit('error', { message: 'Device not connected' });
         }
     });
 
@@ -60,21 +78,40 @@ io.on('connection', (socket) => {
     });
 });
 
-// Handle data from Arduino with proper error handling
+// Handle data from Arduino with improved error handling
 parser.on('data', (data) => {
     try {
         const parsedData = JSON.parse(data.trim());
         console.log('Received from Arduino:', parsedData);
+        
+        // Validate data structure
+        if (!parsedData || typeof parsedData !== 'object') {
+            throw new Error('Invalid data format');
+        }
+        
         io.emit('arduinoData', parsedData);
     } catch (error) {
         console.error('Error parsing Arduino data:', error.message);
         console.log('Raw data received:', data);
+        io.emit('error', { message: 'Error processing device data' });
     }
 });
 
 // Error handling for serial port
 serialPort.on('error', (err) => {
     console.error(`Serial port error: ${err.message}`);
+    // Attempt to reconnect
+    setTimeout(() => {
+        if (!serialPort.isOpen) {
+            serialPort.open((err) => {
+                if (err) {
+                    console.error('Failed to reconnect:', err.message);
+                } else {
+                    console.log('Successfully reconnected to serial port');
+                }
+            });
+        }
+    }, 5000);
 });
 
 // Authentication routes
@@ -152,6 +189,15 @@ app.post('/api/login', async (req, res) => {
             });
         }
     }
+});
+
+// Add after all routes in app.js
+app.use((err, req, res, next) => {
+    console.error('Global error:', err);
+    res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+    });
 });
 
 // Start server

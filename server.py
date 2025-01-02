@@ -30,27 +30,36 @@ with app.app_context():
 def login():
     try:
         data = request.get_json()
+        if not data:
+            print('Login error: No JSON data received')
+            return jsonify({"success": False, "message": "Invalid request format"}), 400
+            
         username = data.get('username')
         password = data.get('password')
 
         if not username or not password:
+            print('Login error: Missing credentials')
             return jsonify({"success": False, "message": "Missing credentials"}), 400
 
         user = User.query.filter_by(username=username).first()
+        print(f'Login attempt for user: {username}')
         
         if user and user.check_password(password):
+            print(f'Successful login for user: {username}')
             return jsonify({
                 "success": True,
                 "message": "Login successful",
                 "redirect_url": "/dashboard"
             }), 200
         
+        print(f'Failed login attempt for user: {username}')
         return jsonify({
             "success": False,
             "message": "Invalid credentials"
         }), 401
     except Exception as e:
-        print('Login error:', str(e))
+        print(f'Login error: {str(e)}')
+        print(f'Error type: {type(e).__name__}')
         return jsonify({
             "success": False,
             "message": "An error occurred during login"
