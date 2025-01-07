@@ -184,29 +184,42 @@
       const ctx = webcamCanvas.getContext("2d");
 
       let stream = null;
+      let isStreaming = false;
+
+      const isMainComputer =
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1";
+
+      if (isMainComputer) {
+        socket.emit("registerAsMain");
+      }
 
       async function startWebcam() {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              deviceId: undefined, // Let the browser choose the available webcam
-            },
-          });
+          if (isMainComputer) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            });
 
-          webcamFeed.srcObject = stream;
-          await webcamFeed.play();
+            webcamFeed.srcObject = stream;
+            await webcamFeed.play();
 
-          // Set canvas size to match video
-          webcamCanvas.width = webcamFeed.videoWidth;
-          webcamCanvas.height = webcamFeed.videoHeight;
+            webcamCanvas.width = webcamFeed.videoWidth;
+            webcamCanvas.height = webcamFeed.videoHeight;
 
-          startWebcamBtn.style.display = "none";
-          stopWebcamBtn.style.display = "block";
+            isStreaming = true;
+            startWebcamBtn.style.display = "none";
+            stopWebcamBtn.style.display = "block";
 
-          // Start sending frames
-          sendWebcamFrames();
+            // Start sending frames immediately
+            sendWebcamFrames();
+          } else {
+            startWebcamBtn.style.display = "none";
+            stopWebcamBtn.style.display = "block";
+          }
         } catch (err) {
           console.error("Error accessing webcam:", err);
           alert(
@@ -216,21 +229,21 @@
       }
 
       function stopWebcam() {
-        if (stream) {
+        if (isMainComputer && stream) {
           stream.getTracks().forEach((track) => track.stop());
-          webcamFeed.srcObject = null;
-          startWebcamBtn.style.display = "block";
-          stopWebcamBtn.style.display = "none";
+          isStreaming = false;
         }
+        webcamFeed.srcObject = null;
+        webcamFeed.src = "";
+        startWebcamBtn.style.display = "block";
+        stopWebcamBtn.style.display = "none";
       }
 
       function sendWebcamFrames() {
-        if (!stream) return;
+        if (!stream || !isStreaming || !isMainComputer) return;
 
-        // Draw current frame to canvas
         ctx.drawImage(webcamFeed, 0, 0);
 
-        // Get frame data and send to server
         webcamCanvas.toBlob(
           (blob) => {
             const reader = new FileReader();
@@ -242,11 +255,10 @@
             reader.readAsDataURL(blob);
           },
           "image/jpeg",
-          0.7
+          0.5 // Reduced quality for better performance
         );
 
-        // Schedule next frame
-        if (stream.active) {
+        if (isStreaming) {
           requestAnimationFrame(sendWebcamFrames);
         }
       }
@@ -254,9 +266,9 @@
       startWebcamBtn.addEventListener("click", startWebcam);
       stopWebcamBtn.addEventListener("click", stopWebcam);
 
-      // Handle webcam frames from server
-      socket.on("webcamFrame", (data) => {
-        if (webcamFeed.srcObject === null) {
+      // Handle incoming webcam frames
+      socket.on("receiveWebcamFrame", (data) => {
+        if (!isMainComputer) {
           webcamFeed.src = `data:image/jpeg;base64,${data.image}`;
         }
       });

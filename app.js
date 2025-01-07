@@ -64,6 +64,21 @@ io.on('connection', (socket) => {
     console.log('Client connected');
     
     socket.emit('connectionStatus', { status: 'connected' });
+    
+    // Identify if this is the main computer
+    socket.on('registerAsMain', () => {
+        console.log('Main computer registered');
+        socket.isMainComputer = true;
+        socket.broadcast.emit('mainComputerStatus', { connected: true });
+    });
+
+    // Handle webcam frames from main computer
+    socket.on('webcamFrame', (data) => {
+        if (socket.isMainComputer) {
+            // Broadcast frame to all clients except sender
+            socket.broadcast.emit('receiveWebcamFrame', data);
+        }
+    });
 
     // Handle Arduino commands with validation
     socket.on('sendToArduino', (command) => {
@@ -87,12 +102,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('webcamFrame', (data) => {
-        // Broadcast the frame to all other clients
-        socket.broadcast.emit('webcamFrame', data);
-    });
-
     socket.on('disconnect', () => {
+        if (socket.isMainComputer) {
+            io.emit('mainComputerStatus', { connected: false });
+        }
         console.log('Client disconnected');
     });
 });
