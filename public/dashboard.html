@@ -58,6 +58,50 @@
       .connected {
         color: #388e3c;
       }
+
+      .webcam-box {
+        width: 100%;
+        max-width: 800px;
+      }
+
+      .webcam-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      #webcamFeed {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .webcam-container button {
+        position: absolute;
+        bottom: 1rem;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      #startWebcam {
+        left: 1rem;
+      }
+
+      #stopWebcam {
+        right: 1rem;
+      }
+
+      .webcam-container button:hover {
+        background: rgba(0, 0, 0, 0.9);
+      }
     </style>
   </head>
 
@@ -67,6 +111,17 @@
       <p id="connection-status">Connecting...</p>
     </header>
     <div class="status-container">
+      <div class="status-box webcam-box">
+        <h2>Live Camera Feed</h2>
+        <div class="webcam-container">
+          <video id="webcamFeed" autoplay playsinline></video>
+          <canvas id="webcamCanvas" style="display: none"></canvas>
+          <div class="webcam-controls">
+            <button id="startWebcam">Start Camera</button>
+            <button id="stopWebcam" style="display: none">Stop Camera</button>
+          </div>
+        </div>
+      </div>
       <div class="status-box">
         <h2>Humidity and Temperature</h2>
         <p>Humidity: <span id="humidity" class="status-indicator">--</span>%</p>
@@ -118,6 +173,91 @@
             : "No Smoke";
         } catch (error) {
           console.error("Error updating sensor data:", error);
+        }
+      });
+
+      // Webcam handling
+      const startWebcamBtn = document.getElementById("startWebcam");
+      const stopWebcamBtn = document.getElementById("stopWebcam");
+      const webcamFeed = document.getElementById("webcamFeed");
+      const webcamCanvas = document.getElementById("webcamCanvas");
+      const ctx = webcamCanvas.getContext("2d");
+
+      let stream = null;
+
+      async function startWebcam() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              deviceId: undefined, // Let the browser choose the available webcam
+            },
+          });
+
+          webcamFeed.srcObject = stream;
+          await webcamFeed.play();
+
+          // Set canvas size to match video
+          webcamCanvas.width = webcamFeed.videoWidth;
+          webcamCanvas.height = webcamFeed.videoHeight;
+
+          startWebcamBtn.style.display = "none";
+          stopWebcamBtn.style.display = "block";
+
+          // Start sending frames
+          sendWebcamFrames();
+        } catch (err) {
+          console.error("Error accessing webcam:", err);
+          alert(
+            "Error accessing webcam. Please make sure you have granted camera permissions."
+          );
+        }
+      }
+
+      function stopWebcam() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          webcamFeed.srcObject = null;
+          startWebcamBtn.style.display = "block";
+          stopWebcamBtn.style.display = "none";
+        }
+      }
+
+      function sendWebcamFrames() {
+        if (!stream) return;
+
+        // Draw current frame to canvas
+        ctx.drawImage(webcamFeed, 0, 0);
+
+        // Get frame data and send to server
+        webcamCanvas.toBlob(
+          (blob) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              socket.emit("webcamFrame", {
+                image: reader.result.split(",")[1],
+              });
+            };
+            reader.readAsDataURL(blob);
+          },
+          "image/jpeg",
+          0.7
+        );
+
+        // Schedule next frame
+        if (stream.active) {
+          requestAnimationFrame(sendWebcamFrames);
+        }
+      }
+
+      startWebcamBtn.addEventListener("click", startWebcam);
+      stopWebcamBtn.addEventListener("click", stopWebcam);
+
+      // Handle webcam frames from server
+      socket.on("webcamFrame", (data) => {
+        if (webcamFeed.srcObject === null) {
+          webcamFeed.src = `data:image/jpeg;base64,${data.image}`;
         }
       });
     </script>

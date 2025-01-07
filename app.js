@@ -7,6 +7,7 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const path = require('path');
 const axios = require('axios');
 const cors = require('cors');
+const NodeWebcam = require('node-webcam');
 
 // Express setup
 const app = express();
@@ -44,11 +45,24 @@ const serialPort = new SerialPort({
 const parser = new ReadlineParser();
 serialPort.pipe(parser);
 
+// Webcam configuration
+const webcamOptions = {
+    width: 1280,
+    height: 720,
+    quality: 100,
+    delay: 0,
+    saveShots: false,
+    output: "jpeg",
+    device: false,
+    callbackReturn: "buffer"
+};
+
+const Webcam = NodeWebcam.create(webcamOptions);
+
 // WebSocket Communication
 io.on('connection', (socket) => {
     console.log('Client connected');
     
-    // Send initial connection status
     socket.emit('connectionStatus', { status: 'connected' });
 
     // Handle Arduino commands with validation
@@ -71,6 +85,11 @@ io.on('connection', (socket) => {
             console.error('Serial port is not open');
             socket.emit('error', { message: 'Device not connected' });
         }
+    });
+
+    socket.on('webcamFrame', (data) => {
+        // Broadcast the frame to all other clients
+        socket.broadcast.emit('webcamFrame', data);
     });
 
     socket.on('disconnect', () => {
